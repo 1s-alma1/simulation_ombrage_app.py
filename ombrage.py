@@ -2,55 +2,77 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
-pip install matplotlib
-pip install numpy
 
+st.set_page_config(page_title="Ombrage Photovoltaïque", layout="centered")
+st.title("🌤️ Simulation d’ombrage avec pertes estimées (2 obstacles)")
 
-st.set_page_config(page_title="Simulation d’Ombrage PV", layout="centered")
-st.title("☀️ Simulation d’ombrage sur une maison photovoltaïque")
+# === Paramètres utilisateur ===
+conso_annuelle = 8260  # kWh/an
 
-# Entrées utilisateur
-obstacle = st.selectbox("Choisissez le type d’obstacle", ["Arbre", "Bâtiment", "Mur"])
-hauteur_obstacle = st.slider("Hauteur de l’obstacle (m)", 1, 10, 4)
-distance_obstacle = st.slider("Distance de l’obstacle depuis la maison (m)", 1, 20, 5)
-hauteur_soleil = st.slider("Hauteur du soleil (°)", 5, 90, 60)
+st.sidebar.header("🔧 Paramètres des obstacles")
 
-# Calcul de l’ombre
-longueur_ombre = hauteur_obstacle / np.tan(np.radians(hauteur_soleil))
+# Obstacle 1
+st.sidebar.subheader("Obstacle 1 (ex: Arbre)")
+h1 = st.sidebar.slider("Hauteur obstacle 1 (m)", 1, 10, 4)
+d1 = st.sidebar.slider("Distance obstacle 1 (m)", 1, 20, 5)
+t1 = st.sidebar.selectbox("Type obstacle 1", ["Arbre", "Mur", "Bâtiment"], index=0)
 
-# Affichage graphique
+# Obstacle 2
+st.sidebar.subheader("Obstacle 2 (ex: Bâtiment)")
+h2 = st.sidebar.slider("Hauteur obstacle 2 (m)", 1, 15, 6)
+d2 = st.sidebar.slider("Distance obstacle 2 (m)", 1, 30, 10)
+t2 = st.sidebar.selectbox("Type obstacle 2", ["Aucun", "Bâtiment", "Arbre"], index=1)
+
+# Soleil
+hauteur_soleil = st.slider("☀️ Hauteur du soleil (°)", 5, 90, 60)
+
+# === Calcul des ombres ===
+ombre1 = h1 / np.tan(np.radians(hauteur_soleil))
+ombre2 = h2 / np.tan(np.radians(hauteur_soleil)) if t2 != "Aucun" else 0
+
+# === Maison ===
+long_maison = 12
+ombre_totale = min(long_maison, ombre1 + ombre2)  # max ombrage limité à la toiture
+
+# === Graphique ===
 fig, ax = plt.subplots(figsize=(10, 5))
-longueur_maison = 12
-hauteur_maison = 2.8
-inclinaison_deg = 30
+h_maison = 2.8
+toit = np.tan(np.radians(30)) * (long_maison / 2)
 
 # Maison
-ax.add_patch(patches.Rectangle((0, 0), longueur_maison, hauteur_maison, facecolor='lightblue', label="Maison"))
-ax.add_patch(patches.Polygon([[0, hauteur_maison],
-                              [longueur_maison / 2, hauteur_maison + np.tan(np.radians(inclinaison_deg)) * (longueur_maison / 2)],
-                              [longueur_maison, hauteur_maison]], color='skyblue'))
+ax.add_patch(patches.Rectangle((0, 0), long_maison, h_maison, color='lightblue'))
+ax.add_patch(patches.Polygon([[0, h_maison], [long_maison/2, h_maison + toit], [long_maison, h_maison]], color='skyblue'))
 
-# Obstacle
-x_obs = longueur_maison + distance_obstacle
-color = 'green' if obstacle == "Arbre" else 'grey'
-ax.add_patch(patches.Rectangle((x_obs, 0), 1, hauteur_obstacle, color=color, label=obstacle))
-ax.text(x_obs, hauteur_obstacle + 0.2, f"{obstacle} ({hauteur_obstacle} m)", fontsize=9)
+# Obstacle 1
+ax.add_patch(patches.Rectangle((long_maison + d1, 0), 0.8, h1, color='green' if t1=="Arbre" else 'gray'))
+ax.text(long_maison + d1, h1 + 0.3, f"{t1} ({h1}m)", fontsize=9)
 
-# Ombre
-ax.add_patch(patches.Rectangle((longueur_maison, 0), longueur_ombre, 0.1, color='gray', alpha=0.4, label="Ombre"))
+# Obstacle 2 (si présent)
+if t2 != "Aucun":
+    ax.add_patch(patches.Rectangle((long_maison + d2, 0), 0.8, h2, color='green' if t2=="Arbre" else 'gray'))
+    ax.text(long_maison + d2, h2 + 0.3, f"{t2} ({h2}m)", fontsize=9)
 
-# Mise en page
-ax.set_xlim(0, x_obs + 10)
+# Ombres projetées
+ax.add_patch(patches.Rectangle((long_maison, 0), ombre1, 0.1, color='gray', alpha=0.4))
+if t2 != "Aucun":
+    ax.add_patch(patches.Rectangle((long_maison + ombre1, 0), ombre2, 0.1, color='gray', alpha=0.3))
+
+# Mise en forme
+ax.set_xlim(0, long_maison + max(d1, d2) + 10)
 ax.set_ylim(0, 10)
 ax.set_xlabel("Distance (m)")
 ax.set_ylabel("Hauteur (m)")
-ax.set_title(f"Ombre projetée à {hauteur_soleil}° de hauteur solaire")
+ax.set_title("Visualisation de l’ombre portée")
 ax.grid(True)
-
-# Affichage graphique dans Streamlit
 st.pyplot(fig)
 
-# Résumé texte
-prod_loss_pct = min(100, round((longueur_ombre / 12) * 100, 1)) if longueur_ombre > 0 else 0
-st.markdown(f"🌥️ **Longueur d’ombre estimée** : `{longueur_ombre:.2f} m`")
-st.markdown(f"⚠️ **Taux de masquage potentiel de la toiture** : `{prod_loss_pct}%` (à vérifier avec PVsyst ou SketchUp)")
+# === Résultats numériques ===
+masquage_pct = round((ombre_totale / long_maison) * 100, 1)
+perte_kwh = round((masquage_pct / 100) * conso_annuelle, 1)
+
+st.markdown("### 📊 Résultats de l’analyse")
+st.markdown(f"🟫 Longueur d’ombre cumulée sur toiture : **{ombre_totale:.2f} m**")
+st.markdown(f"🔧 Taux de masquage estimé : **{masquage_pct:.1f}%**")
+st.markdown(f"⚡ Pertes en production estimées : **{perte_kwh:.1f} kWh/an** sur {conso_annuelle} kWh")
+
+st.caption("Simulation simplifiée – pour une validation précise, utiliser PVsyst avec la géométrie exacte.")
