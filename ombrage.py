@@ -44,7 +44,7 @@ ax.set_ylabel("Hauteur (m)")
 ax.set_title(f"Ombre projetée à {hauteur_soleil}° de hauteur solaire")
 ax.grid(True)
 
-# Affichage de résultats
+# Affichage graphique dans Streamlit
 st.pyplot(fig)
 
 # Résumé texte
