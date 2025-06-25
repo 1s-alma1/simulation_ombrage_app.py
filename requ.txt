@@ -1,2 +1,3 @@
+pip install streamlit matplotlib numpy
 pip install matplotlib
 pip install numpy
