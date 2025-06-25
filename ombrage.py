@@ -2,6 +2,9 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
+pip install matplotlib
+pip install numpy
+
 
 st.set_page_config(page_title="Simulation d’Ombrage PV", layout="centered")
 st.title("☀️ Simulation d’ombrage sur une maison photovoltaïque")
